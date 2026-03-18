@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "skipper-pytest"
+version = "0.1.0"
+description = "pytest plugin for Skipper test-gating via Google Spreadsheet"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+keywords = ["testing", "test-gating", "google-sheets", "skipper", "pytest"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: Pytest",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Testing",
+]
+dependencies = [
+    "skipper-core>=0.1.0",
+    "pytest>=7.0",
+]
+
+[project.entry-points."pytest11"]
+skipper = "skipper_pytest.plugin"
+
+[tool.uv.sources]
+skipper-core = { workspace = true }
+
+[project.urls]
+Homepage = "https://github.com/get-skipper/skipper-python"
+Repository = "https://github.com/get-skipper/skipper-python"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/skipper_pytest"]

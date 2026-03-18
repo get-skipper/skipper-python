@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "skipper-unittest"
+version = "0.1.0"
+description = "unittest integration for Skipper test-gating via Google Spreadsheet"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+keywords = ["testing", "test-gating", "google-sheets", "skipper", "unittest"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Testing",
+]
+dependencies = [
+    "skipper-core>=0.1.0",
+]
+
+[tool.uv.sources]
+skipper-core = { workspace = true }
+
+[project.urls]
+Homepage = "https://github.com/get-skipper/skipper-python"
+Repository = "https://github.com/get-skipper/skipper-python"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/skipper_unittest"]

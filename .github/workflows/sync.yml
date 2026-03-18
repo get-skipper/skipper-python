@@ -1,0 +1,29 @@
+name: Sync
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sync:
+    name: Sync spreadsheet
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: uv sync --all-packages
+
+      - name: Run tests in sync mode
+        run: uv run pytest tests/ -p no:skipper -x --tb=short
+        env:
+          SKIPPER_MODE: sync
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          SKIPPER_SPREADSHEET_ID: ${{ secrets.SKIPPER_SPREADSHEET_ID }}
+          SKIPPER_SHEET_NAME: skipper-python
