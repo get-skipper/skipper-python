@@ -55,10 +55,7 @@ class SheetsClient:
         primary_name = self._config.sheet_name
         if not primary_name:
             sheets = spreadsheet.get("sheets", [])
-            if sheets:
-                primary_name = sheets[0]["properties"]["title"]
-            else:
-                primary_name = ""
+            primary_name = sheets[0]["properties"]["title"] if sheets else ""
 
         primary = self._fetch_sheet(svc, primary_name, spreadsheet)
 
@@ -150,7 +147,9 @@ def _merge_entries(existing: list[TestEntry], incoming: list[TestEntry]) -> list
         if nid in idx:
             current = result[idx[nid]].disabled_until
             if _more_restrictive(e.disabled_until, current):
-                result[idx[nid]] = dataclasses.replace(result[idx[nid]], disabled_until=e.disabled_until)
+                result[idx[nid]] = dataclasses.replace(
+                    result[idx[nid]], disabled_until=e.disabled_until
+                )
         else:
             idx[nid] = len(result)
             result.append(e)
@@ -167,7 +166,6 @@ def _more_restrictive(candidate: datetime | None, current: datetime | None) -> b
 
 
 def _parse_date(s: str) -> datetime | None:
-    from datetime import date
 
     formats = ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S"]
     for fmt in formats:

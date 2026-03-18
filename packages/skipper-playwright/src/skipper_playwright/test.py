@@ -8,7 +8,6 @@ import threading
 from typing import Any
 
 import pytest
-
 from skipper_core import (
     CacheManager,
     SkipperConfig,

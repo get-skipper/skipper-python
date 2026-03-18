@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock
 
 import pytest
-
 from skipper_core import SkipperConfig, SkipperResolver, build_test_id, normalize_test_id
 from skipper_core.credentials import FileCredentials
 from skipper_playwright import SkipperSyncTest

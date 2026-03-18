@@ -6,8 +6,6 @@ import json
 import os
 import tempfile
 
-import pytest
-
 from skipper_core import CacheManager
 
 
@@ -38,7 +36,8 @@ class TestCacheManager:
             self.manager.write_discovered_ids(tmpdir, ids)
             files = [f for f in os.listdir(tmpdir) if f.endswith(".json")]
             assert len(files) == 1
-            content = json.loads(open(os.path.join(tmpdir, files[0])).read())
+            with open(os.path.join(tmpdir, files[0])) as fh:
+                content = json.loads(fh.read())
             assert content == ids
 
     def test_merge_discovered_ids_deduplicates(self) -> None:
@@ -51,7 +50,8 @@ class TestCacheManager:
     def test_merge_discovered_ids_ignores_cache_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Write a cache.json that should not be counted as discovered IDs.
-            open(os.path.join(tmpdir, "cache.json"), "w").write('{"key": null}')
+            with open(os.path.join(tmpdir, "cache.json"), "w") as fh:
+                fh.write('{"key": null}')
             self.manager.write_discovered_ids(tmpdir, ["test_a"])
             merged = self.manager.merge_discovered_ids(tmpdir)
             assert merged == ["test_a"]

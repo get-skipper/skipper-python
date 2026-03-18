@@ -5,8 +5,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from skipper_core import SkipperConfig, SkipperResolver
 from skipper_core.client import FetchAllResult, SheetFetchResult, TestEntry
 from skipper_core.credentials import FileCredentials

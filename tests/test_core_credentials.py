@@ -8,7 +8,6 @@ import os
 import tempfile
 
 import pytest
-
 from skipper_core import Base64Credentials, Credentials, FileCredentials, ServiceAccountCredentials
 
 
@@ -74,5 +73,5 @@ class TestServiceAccountCredentials:
 
     def test_is_frozen(self) -> None:
         creds = self._make()
-        with pytest.raises(Exception):
+        with pytest.raises(AttributeError):
             creds.project_id = "other-project"  # type: ignore[misc]

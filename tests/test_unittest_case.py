@@ -6,8 +6,6 @@ import threading
 import unittest
 from datetime import datetime, timedelta, timezone
 
-import pytest
-
 from skipper_core import SkipperConfig, SkipperResolver, build_test_id, normalize_test_id
 from skipper_core.credentials import FileCredentials
 from skipper_unittest import SkipperTestCase

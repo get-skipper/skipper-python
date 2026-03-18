@@ -68,7 +68,7 @@ class SkipperResolver:
         return json.dumps(out).encode()
 
     @classmethod
-    def from_marshal_cache(cls, data: bytes) -> "SkipperResolver":
+    def from_marshal_cache(cls, data: bytes) -> SkipperResolver:
         """Rehydrate a resolver from bytes produced by marshal_cache."""
         raw: dict[str, Any] = json.loads(data)
         cache: dict[str, datetime | None] = {}

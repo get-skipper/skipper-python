@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 @dataclasses.dataclass(frozen=True)
 class SkipperConfig:
     spreadsheet_id: str
-    credentials: "Credentials"
+    credentials: Credentials
     sheet_name: str | None = None
     reference_sheets: tuple[str, ...] = ()
     # Column header names in the spreadsheet (camelCase matches all other ports).

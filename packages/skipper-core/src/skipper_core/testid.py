@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import re
 from pathlib import Path
 
@@ -30,10 +31,8 @@ def _to_relative_path(file_path: str) -> str:
             import os
 
             root = Path(os.getcwd())
-        try:
+        with contextlib.suppress(ValueError):
             p = p.relative_to(root)
-        except ValueError:
-            pass
     return str(p).replace("\\", "/")
 
 
