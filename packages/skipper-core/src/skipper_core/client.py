@@ -45,9 +45,7 @@ class SheetsClient:
         import json as _json
 
         info = _json.loads(cred_json)
-        creds = service_account.Credentials.from_service_account_info(
-            info, scopes=[_SHEETS_SCOPE]
-        )
+        creds = service_account.Credentials.from_service_account_info(info, scopes=[_SHEETS_SCOPE])
         svc = build("sheets", "v4", credentials=creds, cache_discovery=False)
 
         spreadsheet = svc.spreadsheets().get(spreadsheetId=self._config.spreadsheet_id).execute()

@@ -72,9 +72,7 @@ class TestSkipperSyncTestSkipped:
 
         # Inject disabled status for the method.
         file_path = inspect.getfile(FakeTest)
-        test_id = normalize_test_id(
-            build_test_id(file_path, ["FakeTest", "test_something"])
-        )
+        test_id = normalize_test_id(build_test_id(file_path, ["FakeTest", "test_something"]))
         resolver._cache[test_id] = future  # type: ignore[index]
 
         with pytest.raises(pytest.skip.Exception):
