@@ -4,7 +4,7 @@ import dataclasses
 from datetime import datetime, timezone
 from typing import Any
 
-from google.oauth2 import service_account  # type: ignore[import-untyped]
+from google.oauth2 import service_account
 from googleapiclient.discovery import build  # type: ignore[import-untyped]
 
 from .config import SkipperConfig
@@ -45,7 +45,7 @@ class SheetsClient:
         import json as _json
 
         info = _json.loads(cred_json)
-        creds = service_account.Credentials.from_service_account_info(info, scopes=[_SHEETS_SCOPE])
+        creds = service_account.Credentials.from_service_account_info(info, scopes=[_SHEETS_SCOPE])  # type: ignore[no-untyped-call]
         svc = build("sheets", "v4", credentials=creds, cache_discovery=False)
 
         spreadsheet = svc.spreadsheets().get(spreadsheetId=self._config.spreadsheet_id).execute()

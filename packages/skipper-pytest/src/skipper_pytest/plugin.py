@@ -179,7 +179,7 @@ def _is_xdist_worker(config: pytest.Config) -> bool:
 
 def _config_from_env() -> SkipperConfig | None:
     """Build a minimal SkipperConfig from environment variables."""
-    from skipper_core import Base64Credentials, FileCredentials
+    from skipper_core import Base64Credentials, Credentials, FileCredentials
 
     spreadsheet_id = os.getenv("SKIPPER_SPREADSHEET_ID")
     if not spreadsheet_id:
@@ -188,6 +188,7 @@ def _config_from_env() -> SkipperConfig | None:
     creds_file = os.getenv("SKIPPER_CREDENTIALS_FILE")
     creds_b64 = os.getenv("GOOGLE_CREDS_B64")
 
+    credentials: Credentials
     if creds_file:
         credentials = FileCredentials(path=creds_file)
     elif creds_b64:
