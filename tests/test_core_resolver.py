@@ -156,9 +156,7 @@ class TestFailOpen:
         monkeypatch.setenv("SKIPPER_CACHE_TTL", "300")
 
         future = datetime.now(tz=timezone.utc) + timedelta(days=7)
-        warm_cache: dict[str, datetime | None] = {
-            "tests/test_foo.py > test_disabled": future
-        }
+        warm_cache: dict[str, datetime | None] = {"tests/test_foo.py > test_disabled": future}
         _write_api_cache(cache_path, warm_cache)
 
         resolver = SkipperResolver(_make_config())
@@ -167,18 +165,14 @@ class TestFailOpen:
 
         assert resolver.is_test_enabled("tests/test_foo.py > test_disabled") is False
 
-    def test_ignores_expired_cache(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_ignores_expired_cache(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         cache_path = str(tmp_path / "cache.json")
         monkeypatch.setenv("SKIPPER_FAIL_OPEN", "true")
         monkeypatch.setenv("SKIPPER_CACHE_FILE", cache_path)
         monkeypatch.setenv("SKIPPER_CACHE_TTL", "1")
 
         future = datetime.now(tz=timezone.utc) + timedelta(days=7)
-        warm_cache: dict[str, datetime | None] = {
-            "tests/test_foo.py > test_disabled": future
-        }
+        warm_cache: dict[str, datetime | None] = {"tests/test_foo.py > test_disabled": future}
         _write_api_cache(cache_path, warm_cache)
 
         # Expire the cache by backdating the timestamp.

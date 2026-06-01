@@ -24,11 +24,7 @@ def build_report(
     now = datetime.now(tz=timezone.utc)
     week_later = now + timedelta(days=7)
 
-    active_disabled = {
-        k: v
-        for k, v in all_entries.items()
-        if v is not None and v > now
-    }
+    active_disabled = {k: v for k, v in all_entries.items() if v is not None and v > now}
     expiring_this_week = [k for k, v in active_disabled.items() if v <= week_later]
     quarantine_days = sum(max(0, (v - now).days) for v in active_disabled.values())
 

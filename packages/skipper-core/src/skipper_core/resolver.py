@@ -132,9 +132,7 @@ def _write_api_cache(path: str, cache: dict[str, datetime | None]) -> None:
         warn(f"could not write API cache to {path!r}: {exc}")
 
 
-def _read_api_cache(
-    path: str, ttl: int
-) -> dict[str, Any] | None:
+def _read_api_cache(path: str, ttl: int) -> dict[str, Any] | None:
     """Read the persistent API cache if it exists and is within TTL.
 
     Returns a dict with keys ``ts`` (float) and ``entries``

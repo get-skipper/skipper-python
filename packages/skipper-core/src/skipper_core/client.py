@@ -176,9 +176,7 @@ def _parse_date(s: str, row_num: int = 0) -> datetime | None:
     raw = s.strip()
     if not _DATE_RE.match(raw):
         loc = f"row {row_num}: " if row_num else ""
-        raise ValueError(
-            f"[skipper] {loc}invalid disabledUntil {raw!r}. Use YYYY-MM-DD."
-        )
+        raise ValueError(f"[skipper] {loc}invalid disabledUntil {raw!r}. Use YYYY-MM-DD.")
     d = datetime.strptime(raw, "%Y-%m-%d").replace(tzinfo=timezone.utc)
     # Disabled through end of that calendar day UTC (re-enables at midnight of next day).
     return d + timedelta(days=1)

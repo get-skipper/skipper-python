@@ -96,9 +96,10 @@ class TestBuildMarkdownSummary:
 
 class TestEmitSummary:
     def test_writes_to_stdout_without_github_env(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
     ) -> None:
-        os.chdir(tmp_path)
+        monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+        monkeypatch.chdir(tmp_path)
         report = build_report({}, suppressed_this_run=[], re_enabled_this_run=[])
         emit_summary(report)
         out = capsys.readouterr().out
