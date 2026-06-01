@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "skipper-core"
-version = "0.1.0"
+version = "1.2.0"
 description = "Core Google Sheets client and resolver for Skipper test-gating"
 readme = "README.md"
 license = { text = "MIT" }

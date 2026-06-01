@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "skipper-pytest"
-version = "0.1.0"
+version = "1.2.0"
 description = "pytest plugin for Skipper test-gating via Google Spreadsheet"
 readme = "README.md"
 license = { text = "MIT" }
@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Software Development :: Testing",
 ]
 dependencies = [
-    "skipper-core>=0.1.0",
+    "skipper-core>=1.2.0",
     "pytest>=7.0",
 ]
 
