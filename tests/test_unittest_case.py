@@ -36,6 +36,7 @@ class TestSkipperTestCaseEnabled(SkipperTestCase):
     def setUpClass(cls) -> None:
         # Bypass network — inject an empty-cache resolver.
         cls._skipper_discovered = []
+        cls._skipper_suppressed = []
         cls._skipper_lock = threading.Lock()
         cls._skipper_cache_dir = None
         cls._skipper_resolver = _make_resolver({})
@@ -59,6 +60,7 @@ class TestSkipperTestCaseSkipped(SkipperTestCase):
         import inspect
 
         cls._skipper_discovered = []
+        cls._skipper_suppressed = []
         cls._skipper_lock = threading.Lock()
         cls._skipper_cache_dir = None
 

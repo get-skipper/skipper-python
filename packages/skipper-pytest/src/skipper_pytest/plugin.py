@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import os
 import threading
+from datetime import datetime, timezone
 
 import pytest
 from skipper_core import (
     CacheManager,
     SkipperConfig,
     SkipperResolver,
+    build_report,
     build_test_id,
+    emit_summary,
     mode_from_env,
 )
 from skipper_core.writer import SheetsWriter
@@ -20,6 +23,7 @@ _resolver: SkipperResolver | None = None
 _cache_dir: str | None = None
 _discovered_lock = threading.Lock()
 _discovered_ids: list[str] = []
+_suppressed_ids: list[str] = []
 _config: SkipperConfig | None = None
 _cache_manager = CacheManager()
 
@@ -50,12 +54,13 @@ def configure_skipper(config: SkipperConfig) -> None:
 
 def pytest_configure(config: pytest.Config) -> None:
     """Initialize the resolver (or rehydrate from cache for xdist workers)."""
-    global _resolver, _cache_dir, _discovered_ids
+    global _resolver, _cache_dir, _discovered_ids, _suppressed_ids
 
     _discovered_ids = []
+    _suppressed_ids = []
 
     # xdist worker: rehydrate from cache file written by the controller.
-    cache_file = os.getenv("SKIPPER_CACHE_FILE")
+    cache_file = os.getenv("SKIPPER_WORKER_CACHE_FILE")
     if cache_file and _is_xdist_worker(config):
         data = _cache_manager.read_resolver_cache(cache_file)
         _resolver = SkipperResolver.from_marshal_cache(data)
@@ -90,7 +95,7 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     data = resolver.marshal_cache()
     cache_dir = _cache_manager.write_resolver_cache(data)
     _cache_dir = cache_dir
-    os.environ["SKIPPER_CACHE_FILE"] = os.path.join(cache_dir, "cache.json")
+    os.environ["SKIPPER_WORKER_CACHE_FILE"] = os.path.join(cache_dir, "cache.json")
     os.environ["SKIPPER_DISCOVERED_DIR"] = cache_dir
 
 
@@ -114,13 +119,31 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
         msg = "[skipper] Test disabled"
         if until is not None:
             msg += f" until {until.strftime('%Y-%m-%d')}"
+        with _discovered_lock:
+            _suppressed_ids.append(test_id)
         pytest.skip(msg)
 
 
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
-    """In sync mode, write discovered IDs and reconcile the spreadsheet."""
+    """Emit quarantine report; in sync mode also reconcile the spreadsheet."""
     if _resolver is None or _is_xdist_worker(session.config):
         return
+
+    with _discovered_lock:
+        discovered = list(_discovered_ids)
+        suppressed = list(_suppressed_ids)
+
+    # Compute re-enabled: tests in the sheet that ran (not suppressed) in this session.
+    all_entries = _resolver.get_all_entries()
+    now = datetime.now(tz=timezone.utc)
+    re_enabled = [
+        tid
+        for tid in discovered
+        if tid not in suppressed and _entry_expired(all_entries.get(tid), now)
+    ]
+
+    report = build_report(all_entries, suppressed, re_enabled)
+    emit_summary(report)
 
     cfg = _config or _config_from_env()
     if cfg is None or mode_from_env().value != "sync":
@@ -129,16 +152,13 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
 
     # Flush in-memory discovered IDs to the shared dir.
     if _cache_dir:
-        with _discovered_lock:
-            ids = list(_discovered_ids)
-        if ids:
-            _cache_manager.write_discovered_ids(_cache_dir, ids)
+        if discovered:
+            _cache_manager.write_discovered_ids(_cache_dir, discovered)
 
         # Merge all workers' files.
         all_ids = _cache_manager.merge_discovered_ids(_cache_dir)
     else:
-        with _discovered_lock:
-            all_ids = list(_discovered_ids)
+        all_ids = discovered
 
     writer = SheetsWriter(cfg)
     writer.sync(all_ids)
@@ -165,7 +185,7 @@ def _test_id_from_item(item: pytest.Item) -> str:
     # test_login[chrome] and test_login[firefox] map to the same spreadsheet row.
     title_parts = [_strip_param(p) for p in title_parts]
 
-    return build_test_id(file_path, title_parts)
+    return str(build_test_id(file_path, title_parts))
 
 
 def _strip_param(name: str) -> str:
@@ -201,6 +221,11 @@ def _config_from_env() -> SkipperConfig | None:
         credentials=credentials,
         sheet_name=os.getenv("SKIPPER_SHEET_NAME") or None,
     )
+
+
+def _entry_expired(until: datetime | None, now: datetime) -> bool:
+    """Return True if a sheet entry exists and its date has already passed."""
+    return until is not None and until <= now
 
 
 def _cleanup() -> None:

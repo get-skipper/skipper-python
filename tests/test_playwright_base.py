@@ -67,6 +67,7 @@ class TestSkipperSyncTestSkipped:
         instance = FakeTest.__new__(FakeTest)
         instance._skipper_resolver = resolver
         instance._skipper_discovered = []
+        instance._skipper_suppressed = []
         instance._skipper_lock = threading.Lock()
         instance._skipper_cache_dir = None
 

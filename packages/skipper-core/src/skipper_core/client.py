@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import dataclasses
-from datetime import datetime, timezone
+import re
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from google.oauth2 import service_account
-from googleapiclient.discovery import build  # type: ignore[import-untyped]
+from googleapiclient.discovery import build  # type: ignore[import-untyped,unused-ignore]
 
 from .config import SkipperConfig
 from .logger import logf, warn
@@ -101,7 +102,7 @@ class SheetsClient:
             )
 
         entries: list[TestEntry] = []
-        for row in values[1:]:
+        for i, row in enumerate(values[1:]):
             if test_id_idx >= len(row):
                 continue
             test_id = str(row[test_id_idx]).strip()
@@ -112,11 +113,8 @@ class SheetsClient:
             if disabled_until_idx >= 0 and disabled_until_idx < len(row):
                 raw = str(row[disabled_until_idx]).strip()
                 if raw:
-                    parsed = _parse_date(raw)
-                    if parsed is not None:
-                        disabled_until = parsed
-                    else:
-                        warn(f"cannot parse disabledUntil {raw!r} for test {test_id!r}")
+                    row_num = i + 2  # +1 for header, +1 for 1-based
+                    disabled_until = _parse_date(raw, row_num)
 
             notes = ""
             if notes_idx >= 0 and notes_idx < len(row):
@@ -163,19 +161,27 @@ def _more_restrictive(candidate: datetime | None, current: datetime | None) -> b
     return candidate > current
 
 
-def _parse_date(s: str) -> datetime | None:
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-    formats = ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S"]
-    for fmt in formats:
-        try:
-            dt = datetime.strptime(s, fmt)
-            if fmt == "%Y-%m-%d":
-                # Treat as end-of-day UTC so the full day is disabled.
-                dt = dt.replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
-            return dt
-        except ValueError:
-            continue
-    return None
+
+def _parse_date(s: str, row_num: int = 0) -> datetime | None:
+    """Parse a disabledUntil date string.
+
+    Accepts only YYYY-MM-DD (strict, padded). Returns UTC midnight of the
+    following day — the test stays disabled through the full calendar day in UTC.
+    Raises ValueError on non-empty strings that don't match the expected format.
+    """
+    if not s or not s.strip():
+        return None
+    raw = s.strip()
+    if not _DATE_RE.match(raw):
+        loc = f"row {row_num}: " if row_num else ""
+        raise ValueError(
+            f"[skipper] {loc}invalid disabledUntil {raw!r}. Use YYYY-MM-DD."
+        )
+    d = datetime.strptime(raw, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    # Disabled through end of that calendar day UTC (re-enables at midnight of next day).
+    return d + timedelta(days=1)
 
 
 def _index_of(header: list[str], col: str) -> int:

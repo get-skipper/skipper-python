@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from .client import SheetsClient, _index_of
 from .config import SkipperConfig
-from .logger import logf
+from .logger import logf, warn
 from .testid import normalize_test_id
 
 
@@ -69,6 +70,14 @@ class SheetsWriter:
                 rows_to_delete.append(i + 1)
 
         # Delete in descending order to avoid index shifting.
+        allow_deletes = os.environ.get("SKIPPER_SYNC_ALLOW_DELETE", "false").lower() == "true"
+        if rows_to_delete and not allow_deletes:
+            warn(
+                f"{len(rows_to_delete)} orphaned row(s) found but not deleted. "
+                "Set SKIPPER_SYNC_ALLOW_DELETE=true to prune them."
+            )
+            rows_to_delete = []
+
         if rows_to_delete:
             rows_to_delete.sort(reverse=True)
             requests = [

@@ -11,7 +11,9 @@ from skipper_core import (
     CacheManager,
     SkipperConfig,
     SkipperResolver,
+    build_report,
     build_test_id,
+    emit_summary,
     mode_from_env,
 )
 from skipper_core.writer import SheetsWriter
@@ -44,6 +46,7 @@ class SkipperTestCase(unittest.TestCase):
     _skipper_resolver: SkipperResolver | None = None
     _skipper_cache_dir: str | None = None
     _skipper_discovered: list[str]
+    _skipper_suppressed: list[str]
     _skipper_lock: threading.Lock
 
     @classmethod
@@ -51,6 +54,7 @@ class SkipperTestCase(unittest.TestCase):
         super().setUpClass()
 
         cls._skipper_discovered = []
+        cls._skipper_suppressed = []
         cls._skipper_lock = threading.Lock()
 
         cfg = getattr(cls, "skipper_config", None)
@@ -58,7 +62,7 @@ class SkipperTestCase(unittest.TestCase):
             return
 
         # Rehydrate from cache file if available (e.g., orchestrated by another process).
-        cache_file = os.getenv("SKIPPER_CACHE_FILE")
+        cache_file = os.getenv("SKIPPER_WORKER_CACHE_FILE")
         if cache_file:
             data = _cache_manager.read_resolver_cache(cache_file)
             cls._skipper_resolver = SkipperResolver.from_marshal_cache(data)
@@ -71,12 +75,32 @@ class SkipperTestCase(unittest.TestCase):
         data = resolver.marshal_cache()
         cache_dir = _cache_manager.write_resolver_cache(data)
         cls._skipper_cache_dir = cache_dir
-        os.environ["SKIPPER_CACHE_FILE"] = os.path.join(cache_dir, "cache.json")
+        os.environ["SKIPPER_WORKER_CACHE_FILE"] = os.path.join(cache_dir, "cache.json")
         os.environ["SKIPPER_DISCOVERED_DIR"] = cache_dir
 
     @classmethod
     def tearDownClass(cls) -> None:
         try:
+            if cls._skipper_resolver is not None:
+                import datetime as _dt
+
+                with cls._skipper_lock:
+                    discovered = list(cls._skipper_discovered)
+                    suppressed = list(cls._skipper_suppressed)
+
+                all_entries = cls._skipper_resolver.get_all_entries()
+                now = _dt.datetime.now(tz=_dt.timezone.utc)
+                re_enabled = [
+                    tid
+                    for tid in discovered
+                    if tid not in suppressed
+                    and tid in all_entries
+                    and all_entries[tid] is not None
+                    and all_entries[tid] <= now  # type: ignore[operator]
+                ]
+                report = build_report(all_entries, suppressed, re_enabled)
+                emit_summary(report)
+
             cfg = getattr(cls, "skipper_config", None)
             if cfg is not None and mode_from_env().value == "sync":
                 with cls._skipper_lock:
@@ -113,4 +137,6 @@ class SkipperTestCase(unittest.TestCase):
             msg = "[skipper] Test disabled"
             if until is not None:
                 msg += f" until {until.strftime('%Y-%m-%d')}"
+            with self._skipper_lock:
+                self._skipper_suppressed.append(test_id)
             self.skipTest(msg)

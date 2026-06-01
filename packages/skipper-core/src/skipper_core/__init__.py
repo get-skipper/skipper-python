@@ -6,6 +6,7 @@ from .config import SkipperConfig
 from .credentials import Base64Credentials, Credentials, FileCredentials, ServiceAccountCredentials
 from .logger import log, logf, warn
 from .mode import SkipperMode, mode_from_env
+from .report import build_report, emit_summary
 from .resolver import SkipperResolver
 from .testid import build_test_id, normalize_test_id
 from .writer import SheetsWriter
@@ -26,7 +27,9 @@ __all__ = [
     "FileCredentials",
     "ServiceAccountCredentials",
     # Helpers
+    "build_report",
     "build_test_id",
+    "emit_summary",
     "log",
     "logf",
     "mode_from_env",

@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import json
+import time
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 from skipper_core import SkipperConfig, SkipperResolver
 from skipper_core.client import FetchAllResult, SheetFetchResult, TestEntry
 from skipper_core.credentials import FileCredentials
+from skipper_core.resolver import _read_api_cache, _write_api_cache
 
 
 def _make_config() -> SkipperConfig:
@@ -117,3 +122,105 @@ class TestMarshalCache:
         data = resolver.marshal_cache()
         parsed = json.loads(data)
         assert isinstance(parsed, dict)
+
+
+class TestFailOpen:
+    def test_fail_open_true_runs_all_tests_on_api_failure(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("SKIPPER_FAIL_OPEN", "true")
+        monkeypatch.setenv("SKIPPER_CACHE_FILE", str(tmp_path / "cache.json"))
+        resolver = SkipperResolver(_make_config())
+        with patch.object(resolver._client, "fetch_all", side_effect=RuntimeError("API down")):
+            resolver.initialize()
+        # Empty cache → all tests enabled (fail-open)
+        assert resolver.is_test_enabled("tests/anything.py > test_x") is True
+
+    def test_fail_open_false_reraises_on_api_failure(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("SKIPPER_FAIL_OPEN", "false")
+        monkeypatch.setenv("SKIPPER_CACHE_FILE", str(tmp_path / "cache.json"))
+        resolver = SkipperResolver(_make_config())
+        with (
+            patch.object(resolver._client, "fetch_all", side_effect=RuntimeError("API down")),
+            pytest.raises(RuntimeError, match="API down"),
+        ):
+            resolver.initialize()
+
+    def test_uses_cache_on_api_failure(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        cache_path = str(tmp_path / "cache.json")
+        monkeypatch.setenv("SKIPPER_CACHE_FILE", cache_path)
+        monkeypatch.setenv("SKIPPER_CACHE_TTL", "300")
+
+        future = datetime.now(tz=timezone.utc) + timedelta(days=7)
+        warm_cache: dict[str, datetime | None] = {
+            "tests/test_foo.py > test_disabled": future
+        }
+        _write_api_cache(cache_path, warm_cache)
+
+        resolver = SkipperResolver(_make_config())
+        with patch.object(resolver._client, "fetch_all", side_effect=RuntimeError("API down")):
+            resolver.initialize()
+
+        assert resolver.is_test_enabled("tests/test_foo.py > test_disabled") is False
+
+    def test_ignores_expired_cache(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        cache_path = str(tmp_path / "cache.json")
+        monkeypatch.setenv("SKIPPER_FAIL_OPEN", "true")
+        monkeypatch.setenv("SKIPPER_CACHE_FILE", cache_path)
+        monkeypatch.setenv("SKIPPER_CACHE_TTL", "1")
+
+        future = datetime.now(tz=timezone.utc) + timedelta(days=7)
+        warm_cache: dict[str, datetime | None] = {
+            "tests/test_foo.py > test_disabled": future
+        }
+        _write_api_cache(cache_path, warm_cache)
+
+        # Expire the cache by backdating the timestamp.
+        raw = json.loads(Path(cache_path).read_text())
+        raw["ts"] = time.time() - 10
+        Path(cache_path).write_text(json.dumps(raw))
+
+        resolver = SkipperResolver(_make_config())
+        with patch.object(resolver._client, "fetch_all", side_effect=RuntimeError("API down")):
+            resolver.initialize()
+
+        # Expired cache ignored → fail-open → test enabled
+        assert resolver.is_test_enabled("tests/test_foo.py > test_disabled") is True
+
+    def test_writes_api_cache_on_success(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        cache_path = str(tmp_path / "api.json")
+        monkeypatch.setenv("SKIPPER_CACHE_FILE", cache_path)
+
+        future = datetime.now(tz=timezone.utc) + timedelta(days=3)
+        entries = [TestEntry(test_id="tests/a.py > test_x", disabled_until=future)]
+        resolver = SkipperResolver(_make_config())
+        with patch.object(resolver._client, "fetch_all", return_value=_make_fetch_result(entries)):
+            resolver.initialize()
+
+        assert Path(cache_path).exists()
+        cached = _read_api_cache(cache_path, ttl=300)
+        assert cached is not None
+        assert "tests/a.py > test_x" in cached["entries"]
+
+
+class TestGetAllEntries:
+    def test_returns_all_entries(self) -> None:
+        future = datetime.now(tz=timezone.utc) + timedelta(days=5)
+        entries = [
+            TestEntry(test_id="tests/a.py > test_one", disabled_until=future),
+            TestEntry(test_id="tests/b.py > test_two", disabled_until=None),
+        ]
+        resolver = SkipperResolver(_make_config())
+        with patch.object(resolver._client, "fetch_all", return_value=_make_fetch_result(entries)):
+            resolver.initialize()
+        all_entries = resolver.get_all_entries()
+        assert len(all_entries) == 2
+        assert "tests/a.py > test_one" in all_entries
